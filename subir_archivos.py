@@ -126,11 +126,10 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                             if 'filename=' in line: fname = os.path.basename(line.split('filename=')[-1].strip('"'))
             if fname:
                 file_dest_path = os.path.join(os.path.normpath(os.path.join(self.translate_path(cd), dest)), fname)
-                # 1. Guardar archivo localmente
                 with open(file_dest_path, 'wb') as f:
                     f.write(fdata)
                 
-                # 2. Intento seguro de subida a MEGA
+                # Proceso de subida a MEGA seguro y compatible
                 email = os.environ.get("MEGA_EMAIL")
                 password = os.environ.get("MEGA_PASSWORD")
                 if email and password:
@@ -142,7 +141,7 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                         m_instance.upload(file_dest_path)
                         print(f"¡{fname} subido exitosamente a MEGA!")
                     except Exception as err:
-                        print(f"⚠️ Error al subir a MEGA: {err}")
+                        print(f"⚠️ Aviso al procesar MEGA: {err}")
 
             self.send_response(303); self.send_header('Location', cd); self.end_headers()
         except Exception as e:
@@ -151,4 +150,5 @@ class HandlerArmada(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     print(f"Iniciando Servidor del DN-5 en el puerto {PORT}...")
-    HTTPServer(('', PORT), HandlerArmada).serve_forever()
+    server = HTTPServer(('0.0.0.0', PORT), HandlerArmada)
+    server.serve_forever()
