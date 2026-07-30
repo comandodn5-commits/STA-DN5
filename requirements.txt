@@ -1,3 +1,2 @@
-mega.py
+mega.py-async
 pycryptodome
-pathvalidate
