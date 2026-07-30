@@ -1,23 +1,8 @@
 import os, urllib.parse, sys
 from http.server import SimpleHTTPRequestHandler, HTTPServer
-from mega import Mega  # <-- Importamos la librería de MEGA
 
-PORT = os.environ.get("PORT", 8500)  # Lee el puerto de la nube o usa 8500 por defecto
+PORT = int(os.environ.get("PORT", 8500))
 CLAVE = "Armada2026"
-
-# === CONFIGURACIÓN DE CREDENCIALES DE MEGA ===
-MEGA_EMAIL = os.environ.get("MEGA_EMAIL", "tu_correo_mega@ejemplo.com")
-MEGA_PASSWORD = os.environ.get("MEGA_PASSWORD", "tu_contrasena_mega")
-
-# Conexión inicial a MEGA
-m_session = None
-try:
-    print("Conectando con la cuenta de MEGA...")
-    mega = Mega()
-    m_session = mega.login(MEGA_EMAIL, MEGA_PASSWORD)
-    print("¡Conexión exitosa con MEGA!")
-except Exception as e:
-    print(f"⚠️ No se pudo iniciar sesión en MEGA: {e}")
 
 ESTILO = """<style>
 body{font-family:'Segoe UI',sans-serif;margin:0;padding:20px;background:#f0f3f5;color:#1c2833;transition: background 0.5s;}
@@ -141,18 +126,23 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                             if 'filename=' in line: fname = os.path.basename(line.split('filename=')[-1].strip('"'))
             if fname:
                 file_dest_path = os.path.join(os.path.normpath(os.path.join(self.translate_path(cd), dest)), fname)
-                # 1. Guardar copia local temporal en el servidor
+                # 1. Guardar archivo localmente
                 with open(file_dest_path, 'wb') as f:
                     f.write(fdata)
                 
-                # 2. Subir directamente a MEGA
-                if m_session:
+                # 2. Intento seguro de subida a MEGA
+                email = os.environ.get("MEGA_EMAIL")
+                password = os.environ.get("MEGA_PASSWORD")
+                if email and password:
                     try:
+                        from mega import Mega
+                        print(f"Iniciando sesion en MEGA...")
+                        m_instance = Mega().login(email, password)
                         print(f"Subiendo {fname} a MEGA...")
-                        m_session.upload(file_dest_path)
-                        print(f"¡{fname} subido a MEGA correctamente!")
+                        m_instance.upload(file_dest_path)
+                        print(f"¡{fname} subido exitosamente a MEGA!")
                     except Exception as err:
-                        print(f"⚠️ Error subiendo a MEGA: {err}")
+                        print(f"⚠️ Error al subir a MEGA: {err}")
 
             self.send_response(303); self.send_header('Location', cd); self.end_headers()
         except Exception as e:
@@ -160,6 +150,5 @@ class HandlerArmada(SimpleHTTPRequestHandler):
             self.send_response(400); self.end_headers()
 
 if __name__ == '__main__':
-    port_num = int(PORT)
-    print(f"Iniciando Servidor del DN-5 en el puerto {port_num}...")
-    HTTPServer(('', port_num), HandlerArmada).serve_forever()
+    print(f"Iniciando Servidor del DN-5 en el puerto {PORT}...")
+    HTTPServer(('', PORT), HandlerArmada).serve_forever()
