@@ -1,2 +1,4 @@
-mega.py-async
+mega.py
 pycryptodome
+tenacity
+pathvalidate
