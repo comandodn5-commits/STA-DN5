@@ -129,19 +129,29 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                 with open(file_dest_path, 'wb') as f:
                     f.write(fdata)
                 
-                # Proceso de subida a MEGA seguro y compatible
+                # Proceso de subida a MEGA seguro y con diagnóstico directo
                 email = os.environ.get("MEGA_EMAIL")
                 password = os.environ.get("MEGA_PASSWORD")
+                
+                print("\n" + "="*40)
+                print(f"⚓ PROCESANDO SUBIDA: {fname}")
+                print(f"EMAIL DETECTADO: {email if email else '❌ NO CONFIGURADO'}")
+                print(f"PASSWORD DETECTADA: {'YES (*****)' if password else '❌ NO CONFIGURADA'}")
+                
                 if email and password:
                     try:
                         from mega import Mega
-                        print(f"Iniciando sesion en MEGA...")
-                        m_instance = Mega().login(email, password)
-                        print(f"Subiendo {fname} a MEGA...")
+                        print("Iniciando sesion en MEGA...")
+                        mega_api = Mega()
+                        m_instance = mega_api.login(email.strip(), password.strip())
+                        print(f"Subiendo {fname} a la nube de MEGA...")
                         m_instance.upload(file_dest_path)
-                        print(f"¡{fname} subido exitosamente a MEGA!")
+                        print(f"✅ ¡{fname} SUBIDO EXITOSAMENTE A MEGA!")
                     except Exception as err:
-                        print(f"⚠️ Aviso al procesar MEGA: {err}")
+                        print(f"❌ ERROR AL CONECTAR/SUBIR A MEGA: {err}")
+                else:
+                    print("⚠️ ALERTA: No se intentó subir a MEGA porque faltan MEGA_EMAIL o MEGA_PASSWORD en Render (Environment).")
+                print("="*40 + "\n")
 
             self.send_response(303); self.send_header('Location', cd); self.end_headers()
         except Exception as e:
