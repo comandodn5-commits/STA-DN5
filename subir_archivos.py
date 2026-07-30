@@ -14,8 +14,8 @@ h2{color:#002147;margin:5px 0;text-transform:uppercase;font-size:22px}.sub-title
 .upload-box h3{margin-top:0;color:#002147;font-size:16px;border-bottom:2px solid #002147;padding-bottom:5px}
 label{font-size:13px;font-weight:bold;color:#34495e;display:block;margin-top:10px}
 select,input[type='file']{width:100%;margin:6px 0 15px 0;padding:10px;box-sizing:border-box;border-radius:6px;border:1px solid #ccc}
-input[type='submit']{width:100%;background:#002147;color:white;border:2px solid #002147;padding:12px;font-size:15px;border-radius:6px;cursor:pointer;font-weight:bold;transition:all 0.3s}
-input[type='submit']:hover{background:#d4af37;border-color:#d4af37;color:#002147}
+button[type='submit']{width:100%;background:#002147;color:white;border:2px solid #002147;padding:12px;font-size:15px;border-radius:6px;cursor:pointer;font-weight:bold;transition:all 0.3s}
+button[type='submit']:hover{background:#d4af37;border-color:#d4af37;color:#002147}
 .file-section-title{color:#002147;font-size:16px;margin-top:25px}
 ul{list-style-type:none;padding:0}li{padding:12px 15px;border-bottom:1px solid #eef2f5;display:flex;align-items:center}li:hover{background:#f8f9fa}
 a{text-decoration:none;color:#002147;font-weight:500}a:hover{text-decoration:underline;color:#d4af37}
@@ -34,15 +34,12 @@ setInterval(function() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/ping-status', true);
     xhr.timeout = 1800;
-    
     xhr.onload = function() {
         if (xhr.status === 200) {
             document.getElementById('badge').className = 'status-badge online';
             document.getElementById('badge').innerHTML = '⚓ SERVIDOR EN LA NUBE ONLINE - TRANSFERENCIA LISTA';
             document.getElementById('blocker').style.display = 'none';
-        } else {
-            ponerOffline();
-        }
+        } else { ponerOffline(); }
     };
     xhr.onerror = function() { ponerOffline(); };
     xhr.ontimeout = function() { ponerOffline(); };
@@ -63,10 +60,14 @@ class HandlerArmada(SimpleHTTPRequestHandler):
         path = self.translate_path(parsed.path)
         
         if parsed.path == '/ping-status':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b"OK")
+            try:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.send_header('Content-Length', '2')
+                self.end_headers()
+                self.wfile.write(b"OK")
+            except Exception:
+                pass
             return
             
         if os.path.isfile(path):
@@ -89,13 +90,16 @@ class HandlerArmada(SimpleHTTPRequestHandler):
             try: items_dir = os.listdir(path)
             except: items_dir = []
             items_dir.sort(key=lambda a: a.lower())
+            
+            IGNORAR = ['venv', '.venv', '.git', 'subir_archivos.py', 'arrancar.bat', 'diagnostico.bat', 'liberar.bat', 'requirements.txt']
+            
             options = '<option value=".">[Carpeta Actual]</option>'
             for n in items_dir:
-                if os.path.isdir(os.path.join(path, n)) and n != 'venv':
+                if os.path.isdir(os.path.join(path, n)) and n not in IGNORAR and not n.startswith('.'):
                     options += f'<option value="{n}">{n}/</option>'
             files_html = ""
             for n in items_dir:
-                if n in ['venv', 'subir_archivos.py', 'arrancar.bat', 'diagnostico.bat', 'liberar.bat', 'requirements.txt']: continue
+                if n in IGNORAR or n.startswith('.'): continue
                 link = urllib.parse.quote(n)
                 if os.path.isdir(os.path.join(path, n)):
                     files_html += f"<li>📁 <a href='{link}/'>{n}/</a></li>"
@@ -103,14 +107,29 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                     files_html += f"<li>📄 <a href='{link}' onclick='pedirClave(event, this)'>{n}</a></li>"
             back = f"<a class='back-btn' href='../'>⬅ Directorio Superior</a>" if parsed.path != '/' else ''
             
-            html = f"<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>QUINTO DISTRITO NAVAL SANTA CRUZ</title>{ESTILO}{SCRIPT_JS}</head><body><div class='container'><div id='blocker' class='overlay-offline'></div><div class='header-zone'><img src='/dn5.jpg' alt='Insignia' class='logo-armada' onerror='this.style.display=\"none\";'><h2>QUINTO DISTRITO NAVAL SANTA CRUZ</h2><div class='sub-title'>Sistema de Transferencia de Archivos</div></div><div id='badge' class='status-badge online'>⚓ SERVIDOR EN LA NUBE ONLINE - TRANSFERENCIA LISTA</div><div class='path-box'><strong>Directorio:</strong> <code>{parsed.path}</code></div>{back}<div class='upload-box'><h3>⚓ Cargar Documento</h3><form method='POST' enctype='multipart/form-data' action='/upload-target'><input type='hidden' name='current_dir' value='{parsed.path}'><label>Destino:</label><select name='dest_folder'>{options}</select><label>Archivo:</label><input type='file' name='file' required><input type='submit' value='CARGAR DOCUMENTO'></form></div><div class='file-section-title'>Contenido de la Carpeta</div><ul>{files_html if files_html else '<li><i>Vacio</i></li>'}</ul></div></body></html>"
+            html = f"""<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>QUINTO DISTRITO NAVAL SANTA CRUZ</title>{ESTILO}{SCRIPT_JS}</head><body><div class='container'><div id='blocker' class='overlay-offline'></div><div class='header-zone'><img src='/dn5.jpg' alt='Insignia' class='logo-armada' onerror='this.style.display="none";'><h2>QUINTO DISTRITO NAVAL SANTA CRUZ</h2><div class='sub-title'>Sistema de Transferencia de Archivos</div></div><div id='badge' class='status-badge online'>⚓ SERVIDOR EN LA NUBE ONLINE - TRANSFERENCIA LISTA</div><div class='path-box'><strong>Directorio:</strong> <code>{parsed.path}</code></div>{back}<div class='upload-box'><h3>⚓ Cargar Documento</h3><form method='POST' action='/upload-target' enctype='multipart/form-data'><input type='hidden' name='current_dir' value='{parsed.path}'><label>Destino:</label><select name='dest_folder'>{options}</select><label>Archivo:</label><input type='file' name='file' required><br><button type='submit'>CARGAR DOCUMENTO</button></form></div><div class='file-section-title'>Contenido de la Carpeta</div><ul>{files_html if files_html else '<li><i>Vacio</i></li>'}</ul></div></body></html>"""
             self.wfile.write(html.encode('utf-8'))
 
     def do_POST(self):
-        if self.path != '/upload-target': return
+        print("\n" + "="*40)
+        print("📥 RECIBIENDO PETICION POST (SUBIDA DE ARCHIVO)...")
+        print("="*40)
+        
+        if self.path != '/upload-target': 
+            print(f"⚠️ Ruta no reconocida en POST: {self.path}")
+            return
+            
         try:
-            boundary = b'--' + self.headers.get('Content-Type').split('boundary=')[-1].encode()
-            parts = self.rfile.read(int(self.headers.get('Content-Length', 0))).split(boundary)
+            content_type = self.headers.get('Content-Type', '')
+            if 'boundary=' not in content_type:
+                print("❌ ERROR: El formulario no envió el formato multipart correcto.")
+                self.send_response(400); self.end_headers(); return
+                
+            boundary = b'--' + content_type.split('boundary=')[-1].encode()
+            content_length = int(self.headers.get('Content-Length', 0))
+            body_data = self.rfile.read(content_length)
+            parts = body_data.split(boundary)
+            
             cd, dest, fname, fdata = '/', '.', '', b''
             for p in parts:
                 if b'Content-Disposition' in p:
@@ -124,24 +143,25 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                         fdata = data
                         for line in h_str.split('\r\n'):
                             if 'filename=' in line: fname = os.path.basename(line.split('filename=')[-1].strip('"'))
+            
             if fname:
                 file_dest_path = os.path.join(os.path.normpath(os.path.join(self.translate_path(cd), dest)), fname)
                 with open(file_dest_path, 'wb') as f:
                     f.write(fdata)
                 
-                # Proceso de subida a MEGA seguro y con diagnóstico directo
+                print(f"📁 Archivo guardado localmente en el servidor: {fname}")
+                
+                # Intentar subida a MEGA
                 email = os.environ.get("MEGA_EMAIL")
                 password = os.environ.get("MEGA_PASSWORD")
                 
-                print("\n" + "="*40)
-                print(f"⚓ PROCESANDO SUBIDA: {fname}")
                 print(f"EMAIL DETECTADO: {email if email else '❌ NO CONFIGURADO'}")
                 print(f"PASSWORD DETECTADA: {'YES (*****)' if password else '❌ NO CONFIGURADA'}")
                 
                 if email and password:
                     try:
                         from mega import Mega
-                        print("Iniciando sesion en MEGA...")
+                        print("Iniciando sesión en MEGA...")
                         mega_api = Mega()
                         m_instance = mega_api.login(email.strip(), password.strip())
                         print(f"Subiendo {fname} a la nube de MEGA...")
@@ -150,12 +170,14 @@ class HandlerArmada(SimpleHTTPRequestHandler):
                     except Exception as err:
                         print(f"❌ ERROR AL CONECTAR/SUBIR A MEGA: {err}")
                 else:
-                    print("⚠️ ALERTA: No se intentó subir a MEGA porque faltan MEGA_EMAIL o MEGA_PASSWORD en Render (Environment).")
-                print("="*40 + "\n")
-
+                    print("⚠️ ALERTA: Faltan variables de entorno MEGA_EMAIL o MEGA_PASSWORD.")
+            else:
+                print("⚠️ No se detectó ningún nombre de archivo en los datos enviados.")
+                
+            print("="*40 + "\n")
             self.send_response(303); self.send_header('Location', cd); self.end_headers()
         except Exception as e:
-            print(f"Error en POST: {e}")
+            print(f"❌ Error crítico en procesar POST: {e}")
             self.send_response(400); self.end_headers()
 
 if __name__ == '__main__':
